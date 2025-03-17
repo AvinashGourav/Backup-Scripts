@@ -1,0 +1,35 @@
+How to Take Full DB Backup Using RMAN
+
+#!/bin/bash
+
+# Define environment variables
+ORACLE_SID=AGDB
+ORACLE_HOME=/u01/app/oracle/product/19c/dbhome_1
+PATH=$ORACLE_HOME/bin:$PATH
+export ORACLE_SID ORACLE_HOME PATH
+
+# Define connection strings
+TARGET_CONN=”sys/********@AGDB as sysdba” # Target database
+CATALOG_CONN=”rman/********@rmancatalogdb” # Recovery catalog
+
+# Define backup directory
+BACKUP_DIR=”/backup/rman”
+
+# Ensure the backup directory exists
+mkdir -p $BACKUP_DIR
+
+# Run RMAN backup
+rman target $TARGET_CONN catalog $CATALOG_CONN <<EOF
+RUN {
+ALLOCATE CHANNEL ch1 DEVICE TYPE DISK FORMAT ‘$BACKUP_DIR/full_db_%U.bkp’;
+ALLOCATE CHANNEL ch2 DEVICE TYPE DISK FORMAT ‘$BACKUP_DIR/full_db_%U.bkp’;
+
+BACKUP AS COMPRESSED BACKUPSET DATABASE INCLUDE CURRENT CONTROLFILE PLUS ARCHIVELOG;
+
+DELETE OBSOLETE;
+RELEASE CHANNEL ch1;
+RELEASE CHANNEL ch2;
+}
+EOF
+
+echo “RMAN backup completed successfully!”
