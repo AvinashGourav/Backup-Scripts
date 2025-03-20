@@ -1,0 +1,89 @@
+-- Query temporary file information
+Script 1:
+
+SELECT
+ f.file_id,
+ f.file_name,
+ f.file_type,
+ f.tablespace_name,
+ f.create_date AS created_time
+FROM dba_temp_files f;
+
+Script 2:
+
+SET LINESIZE 200
+COLUMN file_name FORMAT A70
+SELECT file_id,
+ file_name,
+ ROUND(bytes/1024/1024/1024) AS size_gb,
+ ROUND(maxbytes/1024/1024/1024) AS max_size_gb,
+ autoextensible,
+ increment_by,
+ status
+FROM dba_temp_files
+ORDER BY file_name;
+
+This script utilizes the dba_temp_files data dictionary view in Oracle Database:
+• f.file_id: Unique identifier for the temporary file.
+• f.file_name: Name of the temporary file.
+• f.file_type: Type of temporary file (e.g., 'TEMPORARY', 'UNDO', 'SEGMENT').
+• f.tablespace_name: Tablespace where the temporary file resides.
+• f.create_date: Date and time the temporary file was created.
+
+-- Query temp segment usage for all sessions currently using temp space
+
+Script 1:
+
+SELECT
+ s.username,
+ s.sid,
+ s.serial#,
+ s.sql_id,
+ seg.segment_type,
+ seg.bytes / 1024 / 1024 AS used_mb,
+ seg.bytes_used / 1024 / 1024 AS used_in_sort_mb
+FROM v$session s
+INNER JOIN v$sort_segment_usage seg ON s.sid = seg.session_id
+WHERE s.status = 'ACTIVE'
+AND seg.bytes > 0;
+
+Script 2:
+
+SET LINESIZE 200
+COLUMN username FORMAT A20
+SELECT username,
+ session_addr,
+ session_num,
+ sqladdr,
+ sqlhash,
+ sql_id,
+ contents,
+ segtype,
+ extents,
+ blocks
+FROM v$tempseg_usage
+ORDER BY username;
+
+The first script utilizes three views:
+• v$session: Contains information about active sessions in the database.
+• v$sort_segment_usage: Shows temporary segment usage by session for sorting
+operations.
+• v$sql_id: Stores information about SQL statements executed by sessions (optional, for
+joining with sql_id if desired)
+
+Explanation:
+• The script filters for ACTIVE sessions (s.status) that are currently using temporary space
+(seg.bytes > 0).
+• It joins the v$session and v$sort_segment_usage views based on the session_id to
+associate session information with temporary segment usage.
+• The script retrieves the following information:
+o s.username: Username of the session owner.
+o s.sid: Session ID.
+o s.serial#: Serial number of the session.
+o s.sql_id: (Optional) SQL ID of the statement using temporary space (requires
+joining with v$sql_id).
+o seg.segment_type: Type of temporary segment (e.g., 'SORT', 'HASH').
+o seg.bytes / 1024 / 1024 AS used_mb: Total temporary space used by the session
+in megabytes (MB).
+o seg.bytes_used / 1024 / 1024 AS used_in_sort_mb: Space used by the session
+specifically for sorting operations in MB.
